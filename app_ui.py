@@ -443,9 +443,22 @@ class CompactImageGroupWidget(QWidget):
                 img_label.setText("❌")
                 img_label.setStyleSheet(img_label.styleSheet() + "font-size: 28px; color: #ef4444;")
             
-            # Simple tooltip
+            # Simple tooltip with file info
             file_name = os.path.basename(file_path)
-            img_label.setToolTip(f"{file_name}\n{file_path}")
+            try:
+                file_size = os.path.getsize(file_path) / (1024*1024)  # MB
+                file_info = f"📁 {file_name}\n📊 {file_size:.1f} MB\n📍 {file_path}"
+            except:
+                file_info = f"📁 {file_name}\n📍 {file_path}"
+            img_label.setToolTip(file_info)
+            
+            # Hover effect for thumbnail
+            img_label.setStyleSheet(img_label.styleSheet() + """
+                QLabel:hover {
+                    border: 2px solid #3b82f6;
+                    background-color: rgba(59, 130, 246, 0.1);
+                }
+            """)
             
             # File index
             index_label = QLabel(f"{i+1}")
@@ -824,12 +837,12 @@ class ResultsView(QWidget):
         """)
         
         # Enhanced Execute All button with modern design
-        self.execute_all_btn = QPushButton("⚡ TRIỂN KHAI TẤT CẢ")
+        self.execute_all_btn = QPushButton("⚡ TỰ ĐỘNG XỬ LÝ")
         self.execute_all_btn.setFixedHeight(45)
         self.execute_all_btn.setStyleSheet("""
             QPushButton {
                 background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #3182ce, stop: 0.5 #2c5aa0, stop: 1 #2a4a80);
+                    stop: 0 #059669, stop: 0.5 #047857, stop: 1 #065f46);
                 color: white;
                 font-weight: bold;
                 font-size: 12px;
@@ -841,11 +854,11 @@ class ResultsView(QWidget):
             }
             QPushButton:hover {
                 background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #2c5aa0, stop: 0.5 #2a4a80, stop: 1 #1e3a60);
+                    stop: 0 #047857, stop: 0.5 #065f46, stop: 1 #064e3b);
             }
             QPushButton:pressed {
                 background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                    stop: 0 #1e3a60, stop: 1 #2a4a80);
+                    stop: 0 #064e3b, stop: 1 #047857);
             }
         """)
         self.execute_all_btn.clicked.connect(self.execute_all_changes)
@@ -1032,7 +1045,7 @@ class ResultsView(QWidget):
         self.scroll_layout.addStretch()
 
     def execute_all_changes(self):
-        """Thực thi tất cả thay đổi: Tự động xóa duplicates + cho phép chọn action cho similar files"""
+        """Tự động triển khai: Xóa duplicates + Đổi tên similar files"""
         if not self.group_widgets:
             QMessageBox.information(self, "Không có dữ liệu", "Không có nhóm nào để xử lý.")
             return
@@ -1048,24 +1061,23 @@ class ResultsView(QWidget):
                 similar_groups.append(group_widget)
 
         total_files = sum(len(g.files) for g in self.group_widgets)
+        duplicate_files = sum(len(g.files) - 1 for g in duplicate_groups)  # Trừ 1 file giữ lại
+        similar_files = sum(len(g.files) for g in similar_groups)
         
-        # Hiển thị thông tin tổng quan
+        # Hiển thị thông tin tổng quan ngắn gọn
         summary_text = f"""
-🔍 TỔNG QUAN THỰC THI TẤT CẢ:
+⚡ TỰ ĐỘNG TRIỂN KHAI TOÀN BỘ:
 
 📊 THỐNG KÊ:
-• Tổng số nhóm: {len(self.group_widgets)}
-• Nhóm trùng lặp (100%): {len(duplicate_groups)} → TỰ ĐỘNG XÓA
-• Nhóm Subject tương tự (85%+): {len(similar_groups)} → CHỌN HÀNH ĐỘNG
-• Tổng số file: {total_files}
+• {len(duplicate_groups)} nhóm trùng lặp → Xóa {duplicate_files} file (giữ lại 1/nhóm)
+• {len(similar_groups)} nhóm tương tự → Đổi tên {similar_files} file theo format nhóm
+• Tổng xử lý: {total_files} file
 
-🎯 LOGIC THỰC THI:
-• Duplicates: Tự động xóa (chuyển vào thùng rác)
-• Similar files: Cho phép chọn di chuyển hoặc đổi tên
+🚀 TỰ ĐỘNG HOÀN TOÀN - KHÔNG CẦN THAO TÁC THÊM!
         """
 
         reply = QMessageBox.question(
-            self, "⚡ THỰC THI TẤT CẢ", 
+            self, "⚡ TỰ ĐỘNG TRIỂN KHAI", 
             summary_text + "\n\nBạn có muốn tiếp tục?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes
@@ -1078,13 +1090,25 @@ class ResultsView(QWidget):
         if duplicate_groups:
             self._auto_delete_duplicates(duplicate_groups)
 
-        # Bước 2: Xử lý các file similar nếu có
+        # Bước 2: Tự động đổi tên các file similar
         if similar_groups:
-            self._handle_similar_files(similar_groups)
+            self._auto_rename_similar_files(similar_groups)
 
-        # Cập nhật UI
-        remaining_groups = [g for g in self.group_widgets if g.parent()]
-        self.results_summary_label.setText(f"📊 Còn lại {len(remaining_groups)} nhóm")
+        # Thông báo hoàn tất
+        QMessageBox.information(
+            self, "🎉 HOÀN TẤT TỰ ĐỘNG!", 
+            f"✅ Đã xử lý xong {total_files} file!\n\n"
+            f"🗑️ Duplicates: {duplicate_files} file → thùng rác\n"
+            f"🔤 Similar: {similar_files} file → đổi tên nhóm\n\n"
+            f"📁 Workspace đã được tối ưu hoàn toàn!"
+        )
+
+        # Clear tất cả groups
+        for group in self.group_widgets:
+            group.setParent(None)
+            group.deleteLater()
+        self.group_widgets.clear()
+        self.results_summary_label.setText("🎯 Đã xử lý xong tất cả - Workspace sạch sẽ!")
 
     def _auto_delete_duplicates(self, duplicate_groups):
         """Tự động xóa tất cả file duplicates"""
@@ -1151,200 +1175,14 @@ class ResultsView(QWidget):
             if group in self.group_widgets:
                 self.group_widgets.remove(group)
 
-    def _handle_similar_files(self, similar_groups):
-        """Xử lý các file similar với dialog lựa chọn"""
-        action = self._show_similar_action_dialog(similar_groups)
-        
-        if action == "move":
-            self._execute_move_similar_files(similar_groups)
-        elif action == "rename":
-            self._execute_rename_similar_files(similar_groups)
-        # Nếu action == "cancel", không làm gì cả
-
-    def _show_similar_action_dialog(self, similar_groups):
-        """Hiển thị dialog lựa chọn cho similar files"""
-        dialog = QDialog(self)
-        dialog.setWindowTitle("📁 XỬ LÝ FILE TƯƠNG TỰ")
-        dialog.setModal(True)
-        dialog.resize(500, 350)
-        
-        layout = QVBoxLayout(dialog)
-        
-        # Thông tin
-        info_text = f"""
-🎯 XỬ LÝ {len(similar_groups)} NHÓM SUBJECT TƯƠNG TỰ:
-
-📊 CHI TIẾT:
-• Tổng số file: {sum(len(g.files) for g in similar_groups)}
-• Threshold: 85%+ (Subject Analysis V25+)
-• Các file này có nội dung tương tự nhưng không trùng lặp hoàn toàn
-
-🔧 LỰA CHỌN HÀNH ĐỘNG:
-        """
-        
-        info_label = QLabel(info_text)
-        info_label.setWordWrap(True)
-        layout.addWidget(info_label)
-        
-        # Radio buttons
-        action_group = QButtonGroup(dialog)
-        
-        move_radio = QRadioButton("📁 DI CHUYỂN VÀO NHÓM THƯ MỤC")
-        move_radio.setChecked(True)
-        move_desc = QLabel("   → Tạo thư mục riêng cho mỗi nhóm và di chuyển file vào")
-        
-        rename_radio = QRadioButton("🔤 ĐỔI TÊN THEO NHÓM")
-        rename_desc = QLabel("   → Đổi tên: Nhóm 1 → 1(1), 1(2)... | Nhóm 2 → 2(1), 2(2)...")
-        
-        action_group.addButton(move_radio, 1)
-        action_group.addButton(rename_radio, 2)
-        
-        layout.addWidget(move_radio)
-        layout.addWidget(move_desc)
-        layout.addWidget(rename_radio)
-        layout.addWidget(rename_desc)
-        
-        # Buttons
-        button_layout = QHBoxLayout()
-        ok_btn = QPushButton("✅ Thực thi")
-        cancel_btn = QPushButton("❌ Bỏ qua")
-        
-        ok_btn.clicked.connect(dialog.accept)
-        cancel_btn.clicked.connect(dialog.reject)
-        
-        button_layout.addWidget(cancel_btn)
-        button_layout.addWidget(ok_btn)
-        layout.addLayout(button_layout)
-        
-        result = dialog.exec()
-        if result == QDialog.DialogCode.Accepted:
-            selected_id = action_group.checkedId()
-            if selected_id == 1:
-                return "move"
-            elif selected_id == 2:
-                return "rename"
-        
-        return "cancel"
-
-    def _execute_move_similar_files(self, similar_groups):
-        """Di chuyển similar files vào các thư mục nhóm"""
-        dest_folder = QFileDialog.getExistingDirectory(
-            self, "Chọn thư mục để tạo các nhóm con", ""
-        )
-        
-        if not dest_folder:
-            return
-        
-        reply = QMessageBox.question(
-            self, "📁 Xác nhận di chuyển", 
-            f"Sẽ tạo {len(similar_groups)} thư mục con trong:\n{dest_folder}\n\n"
-            f"Mỗi nhóm Subject sẽ được di chuyển vào thư mục riêng:\n"
-            f"• Subject_Group_1, Subject_Group_2...\n\n"
-            f"Bạn có muốn tiếp tục?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-        
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-
+    def _auto_rename_similar_files(self, similar_groups):
+        """Tự động đổi tên similar files theo nhóm"""
         total_files = sum(len(group.files) for group in similar_groups)
         progress = QProgressDialog(
-            "Đang di chuyển file...", "Hủy", 0, total_files, self
+            "Đang đổi tên file tương tự...", "Hủy", 0, total_files, self
         )
         progress.setWindowModality(Qt.WindowModality.WindowModal)
-        progress.setWindowTitle("📁 Đang di chuyển file...")
-        progress.show()
-        
-        moved_count, errors = 0, []
-        file_index = 0
-        
-        for group_index, group in enumerate(similar_groups, 1):
-            # Tạo thư mục cho nhóm
-            group_folder = os.path.join(dest_folder, f"Subject_Group_{group_index}")
-            try:
-                os.makedirs(group_folder, exist_ok=True)
-            except Exception as e:
-                errors.append(f"❌ Không thể tạo thư mục {group_folder}: {str(e)}")
-                continue
-            
-            # Di chuyển từng file
-            for file_path in group.files:
-                if progress.wasCanceled():
-                    break
-                    
-                file_index += 1
-                progress.setValue(file_index)
-                filename = os.path.basename(file_path)
-                progress.setLabelText(f"Nhóm {group_index}: {filename}")
-                QApplication.processEvents()
-                
-                try:
-                    dest_path = os.path.join(group_folder, filename)
-                    # Xử lý trùng tên
-                    counter = 1
-                    base_name, ext = os.path.splitext(filename)
-                    while os.path.exists(dest_path):
-                        new_name = f"{base_name}_{counter}{ext}"
-                        dest_path = os.path.join(group_folder, new_name)
-                        counter += 1
-                    
-                    shutil.move(file_path, dest_path)
-                    moved_count += 1
-                except Exception as e:
-                    errors.append(f"❌ {filename}: {str(e)}")
-        
-        progress.setValue(total_files)
-        progress.close()
-        
-        # Thông báo kết quả
-        if errors:
-            QMessageBox.warning(
-                self, "⚠️ Hoàn tất với lỗi", 
-                f"✅ Đã di chuyển: {moved_count}/{total_files} file\n"
-                f"📁 Tạo {len(similar_groups)} thư mục con\n"
-                f"❌ Lỗi: {len(errors)} file\n\n"
-                f"Chi tiết lỗi:\n{chr(10).join(errors[:5])}"
-                + ("..." if len(errors) > 5 else "")
-            )
-        else:
-            QMessageBox.information(
-                self, "🎉 Thành công!", 
-                f"✅ Đã di chuyển {moved_count} file\n"
-                f"📁 Tạo {len(similar_groups)} thư mục con trong:\n{dest_folder}"
-            )
-
-        # Remove groups from UI
-        for group in similar_groups:
-            group.setParent(None)
-            group.deleteLater()
-            if group in self.group_widgets:
-                self.group_widgets.remove(group)
-
-    def _execute_rename_similar_files(self, similar_groups):
-        """Đổi tên similar files theo nhóm"""
-        reply = QMessageBox.question(
-            self, "🔤 Xác nhận đổi tên", 
-            f"Sẽ đổi tên {sum(len(g.files) for g in similar_groups)} file theo format:\n\n"
-            f"📝 LOGIC ĐỔI TÊN:\n"
-            f"• Nhóm 1: 1(1).jpg, 1(2).jpg, 1(3).jpg...\n"
-            f"• Nhóm 2: 2(1).jpg, 2(2).jpg, 2(3).jpg...\n"
-            f"• Giữ nguyên extension gốc\n\n"
-            f"⚠️ Các file sẽ bị đổi tên VĨNH VIỄN!\n\n"
-            f"Bạn có muốn tiếp tục?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
-        
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-
-        total_files = sum(len(group.files) for group in similar_groups)
-        progress = QProgressDialog(
-            "Đang đổi tên file...", "Hủy", 0, total_files, self
-        )
-        progress.setWindowModality(Qt.WindowModality.WindowModal)
-        progress.setWindowTitle("🔤 Đang đổi tên file...")
+        progress.setWindowTitle("🔤 Đang đổi tên tự động...")
         progress.show()
         
         renamed_count, errors = 0, []
@@ -1383,22 +1221,6 @@ class ResultsView(QWidget):
         progress.setValue(total_files)
         progress.close()
         
-        # Thông báo kết quả
-        if errors:
-            QMessageBox.warning(
-                self, "⚠️ Hoàn tất với lỗi", 
-                f"✅ Đã đổi tên: {renamed_count}/{total_files} file\n"
-                f"❌ Lỗi: {len(errors)} file\n\n"
-                f"Chi tiết lỗi:\n{chr(10).join(errors[:5])}"
-                + ("..." if len(errors) > 5 else "")
-            )
-        else:
-            QMessageBox.information(
-                self, "🎉 Thành công!", 
-                f"✅ Đã đổi tên {renamed_count} file theo format:\n"
-                f"📝 Nhóm X: X(1), X(2), X(3)..."
-            )
-
         # Remove groups from UI
         for group in similar_groups:
             group.setParent(None)
