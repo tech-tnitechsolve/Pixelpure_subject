@@ -1,0 +1,41 @@
+﻿# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# AI Models and Cache (Project Specific)
+core/models/
+*.pkl
+*.cache
+cache/
+temp/
+tmp/
+
+# VS Code
+.vscode/
+*.code-workspace
+.history/
+
+# Log files
+*.log
+logs/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# Test files
+test_images/
+sample_data/
+test_output/
