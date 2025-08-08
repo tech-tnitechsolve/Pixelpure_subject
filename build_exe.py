@@ -60,6 +60,51 @@ def check_requirements():
         subprocess.run([sys.executable, "-m", "pip", "install", "pyinstaller"], check=True)
         print_success("PyInstaller đã được cài đặt")
     
+    # Kiểm tra PySide6
+    try:
+        import PySide6
+        print_success(f"PySide6 đã cài đặt: {PySide6.__version__}")
+    except ImportError:
+        print_error("PySide6 chưa cài đặt!")
+        print_warning("Đang cài đặt PySide6...")
+        subprocess.run([sys.executable, "-m", "pip", "install", "PySide6"], check=True)
+        print_success("PySide6 đã được cài đặt")
+    
+    # Kiểm tra các dependencies quan trọng
+    required_packages = [
+        'torch', 'torchvision', 'open_clip_torch', 
+        'PIL', 'cv2', 'numpy', 'imagehash', 'send2trash'
+    ]
+    
+    missing_packages = []
+    for package in required_packages:
+        try:
+            if package == 'PIL':
+                import PIL
+            elif package == 'cv2':
+                import cv2
+            elif package == 'open_clip_torch':
+                import open_clip
+            else:
+                __import__(package)
+            print_success(f"  ✅ {package}")
+        except ImportError:
+            missing_packages.append(package)
+            print_warning(f"  ⚠️  {package} - missing")
+    
+    if missing_packages:
+        print_warning(f"Thiếu {len(missing_packages)} packages. Đang cài đặt...")
+        for package in missing_packages:
+            if package == 'open_clip_torch':
+                subprocess.run([sys.executable, "-m", "pip", "install", "open-clip-torch"], check=True)
+            elif package == 'PIL':
+                subprocess.run([sys.executable, "-m", "pip", "install", "Pillow"], check=True)
+            elif package == 'cv2':
+                subprocess.run([sys.executable, "-m", "pip", "install", "opencv-python"], check=True)
+            else:
+                subprocess.run([sys.executable, "-m", "pip", "install", package], check=True)
+        print_success("Tất cả dependencies đã được cài đặt")
+    
     return True
 
 def create_build_directory():
@@ -86,16 +131,24 @@ def create_spec_file():
 
 import sys
 from pathlib import Path
+import PySide6
 
 # Đường dẫn project
 project_path = Path.cwd()
+pyside6_path = Path(PySide6.__file__).parent
 
 a = Analysis(
     ['main.py'],
     pathex=[str(project_path)],
-    binaries=[],
+    binaries=[
+        # Include PySide6 binaries explicitly
+        (str(pyside6_path / "*.dll"), "PySide6"),
+        (str(pyside6_path / "*.pyd"), "PySide6"),
+    ],
     datas=[
-        # Thêm các file UI nếu có
+        # Include PySide6 data files
+        (str(pyside6_path), "PySide6"),
+        # Thêm các file UI
         ('app_ui.py', '.'),
         ('auto_processor.py', '.'),
         ('cache_manager.py', '.'),
@@ -105,17 +158,38 @@ a = Analysis(
         ('core', 'core'),
     ],
     hiddenimports=[
+        # PySide6 complete imports
+        'PySide6',
         'PySide6.QtCore',
         'PySide6.QtGui', 
         'PySide6.QtWidgets',
+        'PySide6.QtOpenGL',
+        'shiboken6',
+        # AI/ML libraries
         'torch',
+        'torch.nn',
+        'torch.nn.functional',
         'torchvision',
+        'torchvision.transforms',
         'open_clip',
+        'open_clip.model',
+        'open_clip.transform',
+        # Image processing
         'PIL',
+        'PIL.Image',
+        'PIL.ImageTk',
         'cv2',
         'numpy',
         'imagehash',
+        # System utilities
         'send2trash',
+        'pathlib',
+        'json',
+        'time',
+        'threading',
+        'queue',
+        'typing',
+        'dataclasses',
     ],
     hookspath=[],
     hooksconfig={},
@@ -125,6 +199,9 @@ a = Analysis(
         'matplotlib',
         'jupyter',
         'IPython',
+        'pandas',
+        'scipy',
+        'sklearn',
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
@@ -156,6 +233,21 @@ exe = EXE(
     entitlements_file=None,
     icon='icon.ico' if Path('icon.ico').exists() else None,
     version_file='version_info.txt' if Path('version_info.txt').exists() else None,
+    # Additional options for better compatibility
+    uac_admin=False,
+    uac_uiaccess=False,
+)
+
+# Create COLLECT for better structure (optional)
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='PixelPure_dist'
 )
 '''
     
