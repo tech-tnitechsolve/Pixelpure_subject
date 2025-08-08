@@ -4,100 +4,40 @@
 class SpeedConfig:
     """Cấu hình các chế độ quét khác nhau"""
     
-    # Chế độ SIÊU NHANH - Ưu tiên tốc độ tối đa
-    ULTRA_FAST = {
-        'name': 'Siêu Nhanh',
-        'description': 'Tốc độ cao nhất, độ chính xác 80-85%',
-        'fast_mode': True,
-        'batch_size_gpu': 512,
-        'batch_size_cpu': 64,
-        'model_name': 'ViT-B-32',
-        'model_pretrained': 'openai',
-        'resize_before_analysis': True,
-        'parallel_processing': True,
-        'skip_detailed_analysis': True,
-        'similarity_threshold': 0.80,
-        'max_workers': 8
-    }
-    
-    # Chế độ NHANH - Cân bằng tốc độ và chất lượng
-    FAST = {
-        'name': 'Nhanh',
-        'description': 'Tốc độ cao, độ chính xác 85-90%',
-        'fast_mode': True,
-        'batch_size_gpu': 256,
-        'batch_size_cpu': 32,
-        'model_name': 'ViT-B-32',
-        'model_pretrained': 'openai',
-        'resize_before_analysis': True,
-        'parallel_processing': True,
-        'skip_detailed_analysis': False,
-        'similarity_threshold': 0.82,
-        'max_workers': 6
-    }
-    
-    # Chế độ CÂN BẰNG - Mặc định
-    BALANCED = {
-        'name': 'Cân Bằng',
-        'description': 'Cân bằng tốc độ và chất lượng, độ chính xác 90-95%',
-        'fast_mode': False,
-        'batch_size_gpu': 128,
-        'batch_size_cpu': 16,
-        'model_name': 'ViT-B-16',
-        'model_pretrained': 'openai',
-        'resize_before_analysis': False,
-        'parallel_processing': True,
-        'skip_detailed_analysis': False,
-        'similarity_threshold': 0.85,
-        'max_workers': 4
-    }
-    
+    # --- MODIFICATION: Reverted similarity_threshold to 0.87 for stability ---
     # Chế độ CHẤT LƯỢNG CAO - Ưu tiên độ chính xác
+    # Đây là chế độ duy nhất còn lại, được tối ưu cho cả GPU và CPU.
     HIGH_QUALITY = {
         'name': 'Chất Lượng Cao',
-        'description': 'Độ chính xác cao nhất 95-98%, tốc độ chậm hơn',
+        'description': 'Độ chính xác cao nhất 95-98%, tốc độ được tối ưu cho phần cứng.',
         'fast_mode': False,
-        'batch_size_gpu': 64,
-        'batch_size_cpu': 8,
-        'model_name': 'ViT-H-14',
+        'batch_size_gpu': 64,  # Lô xử lý vừa phải cho GPU
+        'batch_size_cpu': 4,   # [TỐI ƯU CPU] Giữ ở mức 4 để giảm tải CPU
+        'model_name': 'ViT-H-14', # Model AI mạnh nhất
         'model_pretrained': 'laion2b_s32b_b79k',
-        'resize_before_analysis': False,
-        'parallel_processing': False,
+        'resize_before_analysis': False, # Phân tích trên ảnh gốc
+        'parallel_processing': False, # Xử lý tuần tự trên CPU để ổn định
         'skip_detailed_analysis': False,
-        'similarity_threshold': 0.87,
-        'max_workers': 2
+        'similarity_threshold': 0.87, # [KHÔI PHỤC] Quay về ngưỡng 0.87 ổn định hơn
+        'max_workers': 1 # [TỐI ƯU CPU] Giữ ở mức 1 để giảm sử dụng luồng
     }
     
     @classmethod
     def get_all_modes(cls):
-        """Lấy tất cả các chế độ có sẵn"""
+        """Lấy tất cả các chế độ có sẵn (chỉ còn lại 1)"""
         return {
-            'ultra_fast': cls.ULTRA_FAST,
-            'fast': cls.FAST,
-            'balanced': cls.BALANCED,
             'high_quality': cls.HIGH_QUALITY
         }
     
     @classmethod
     def get_mode(cls, mode_name: str):
-        """Lấy cấu hình theo tên chế độ"""
-        modes = cls.get_all_modes()
-        return modes.get(mode_name, cls.BALANCED)
+        """Lấy cấu hình theo tên chế độ (luôn trả về Chất Lượng Cao)"""
+        return cls.HIGH_QUALITY
     
     @classmethod
-    def estimate_time(cls, file_count: int, mode_name: str = 'balanced'):
+    def estimate_time(cls, file_count: int, mode_name: str = 'high_quality'):
         """Ước tính thời gian xử lý"""
-        mode = cls.get_mode(mode_name)
-        
-        # Ước tính dựa trên số file và chế độ
-        base_time_per_file = {
-            'ultra_fast': 0.1,    # 0.1 giây/file
-            'fast': 0.2,          # 0.2 giây/file  
-            'balanced': 0.5,      # 0.5 giây/file
-            'high_quality': 1.2   # 1.2 giây/file
-        }
-        
-        time_per_file = base_time_per_file.get(mode_name, 0.5)
+        time_per_file = 1.2   # Giữ nguyên thời gian ước tính
         estimated_seconds = file_count * time_per_file
         
         if estimated_seconds < 60:
@@ -107,4 +47,4 @@ class SpeedConfig:
         else:
             hours = int(estimated_seconds / 3600)
             minutes = int((estimated_seconds % 3600) / 60)
-            return f"~{hours}h {minutes}m"
+            return f"~{hours} giờ {minutes} phút"

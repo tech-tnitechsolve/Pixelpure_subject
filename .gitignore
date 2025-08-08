@@ -1,41 +1,260 @@
-﻿# Byte-compiled / optimized / DLL files
+﻿# PixelPure - Dự án quét và phân tích hình ảnh thông minh
+# Chỉ đẩy source code và file cấu hình cần thiết
+
+# ========================================
+# Python
+# ========================================
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Environments
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# ========================================
+# Environments & Virtual Environments
+# ========================================
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .venv/
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+.python-version
 
-# AI Models and Cache (Project Specific)
+# ========================================
+# AI Models & Cache (Project Specific)
+# ========================================
+# CLIP models (tự động tải về, dung lượng lớn)
 core/models/
+models/
+checkpoints/
+weights/
+
+# Cache files
 *.pkl
 *.cache
+*.tmp
 cache/
 temp/
 tmp/
+.cache/
 
+# Model output files
+output/
+results/
+processed/
+
+# ========================================
+# Development Tools
+# ========================================
 # VS Code
 .vscode/
 *.code-workspace
 .history/
 
-# Log files
+# PyCharm
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# ========================================
+# Logs & Debug
+# ========================================
 *.log
 logs/
+debug.log
+error.log
+*.out
 
-# OS generated files
-.DS_Store
+# ========================================
+# OS Generated Files
+# ========================================
+# Windows
 Thumbs.db
-desktop.ini
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
 $RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
 
-# Test files
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ========================================
+# Testing & Sample Data
+# ========================================
+# Test files (dung lượng lớn, không cần thiết)
 test_images/
 sample_data/
 test_output/
+test_results/
+benchmark/
+samples/
+
+# User uploaded content
+uploads/
+user_data/
+processed_images/
+
+# ========================================
+# Security & Sensitive Data
+# ========================================
+# API keys and secrets
+.env.secret
+secrets.json
+config.secret.json
+*.key
+*.pem
+*.crt
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# ========================================
+# Performance & Memory
+# ========================================
+# Memory dumps
+*.dmp
+core.*
+
+# Large temporary files
+*.large
+*.huge
+
+# ========================================
+# Build & Deployment
+# ========================================
+# Compiled executables
+*.exe
+*.app
+*.dmg
+
+# Package files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Documentation build
+docs/_build/
+site/
+
+# ========================================
+# Backup Files
+# ========================================
+*.bak
+*.backup
+*.old
+*~
+
+# ========================================
+# IDE và Editor specific
+# ========================================
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ========================================
+# Custom Project Specific (PixelPure)
+# ========================================
+# User configuration overrides
+user_config.json
+local_config.json
+
+# Runtime generated files
+*.generated.py
+*.auto.py
+
+# Performance benchmarks
+benchmark_results/
+performance_logs/

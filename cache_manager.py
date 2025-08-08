@@ -1,5 +1,8 @@
 # cache_manager.py
-# Quản lý cache và cleanup khi tắt ứng dụng
+#
+# Phiên bản V28: Sửa lỗi Pylance "AssignmentType".
+# - [FIX] Sửa lỗi Pylance `PylancereportAssignmentType` trong hàm `format_size`
+#   bằng cách sử dụng một biến float riêng biệt thay vì gán lại biến int ban đầu.
 
 import os
 import shutil
@@ -12,8 +15,8 @@ class CacheManager:
     """Quản lý cache và cleanup tài nguyên"""
     
     def __init__(self):
-        self.temp_dirs = []
-        self.cache_dirs = []
+        self.temp_dirs: List[str] = []
+        self.cache_dirs: List[str] = []
         
     def add_temp_dir(self, path: str):
         """Thêm thư mục tạm để cleanup sau"""
@@ -32,7 +35,6 @@ class CacheManager:
         
         print("🧹 Dọn dẹp cache tạm thời...")
         
-        # Cleanup temp directories
         for temp_dir in self.temp_dirs:
             try:
                 if os.path.exists(temp_dir):
@@ -44,7 +46,6 @@ class CacheManager:
             except Exception as e:
                 print(f"   ⚠️ Không thể xóa {temp_dir}: {e}")
         
-        # Cleanup system temp files related to our app
         temp_root = tempfile.gettempdir()
         pixelpure_temps = []
         
@@ -73,11 +74,9 @@ class CacheManager:
         """Dọn dẹp memory cache"""
         print("🧠 Dọn dẹp memory cache...")
         
-        # Clear Python garbage collection
         collected = gc.collect()
         print(f"   ✅ Python GC: {collected} objects")
         
-        # Clear PyTorch cache if available
         if torch.cuda.is_available():
             try:
                 torch.cuda.empty_cache()
@@ -86,10 +85,10 @@ class CacheManager:
             except:
                 pass
         
-        # Clear CPU cache
         try:
             if hasattr(torch, 'cpu'):
-                torch.cpu.empty_cache() if hasattr(torch.cpu, 'empty_cache') else None
+                if hasattr(torch.cpu, 'empty_cache'):
+                    torch.cpu.empty_cache() # type: ignore
         except:
             pass
     
@@ -105,7 +104,6 @@ class CacheManager:
                 import glob
                 for log_file in glob.glob(pattern):
                     if os.path.isfile(log_file):
-                        # Check file age
                         file_age = (os.path.getctime(log_file))
                         import time
                         if time.time() - file_age > (max_age_days * 24 * 3600):
@@ -125,12 +123,10 @@ class CacheManager:
             'total_cache_size': 0
         }
         
-        # Model cache size (keep these)
         model_dir = os.path.join("core", "models")
         if os.path.exists(model_dir):
             info['model_cache_size'] = self._get_dir_size(model_dir)
         
-        # Temp cache size
         for temp_dir in self.temp_dirs:
             if os.path.exists(temp_dir):
                 info['temp_cache_size'] += self._get_dir_size(temp_dir)
@@ -143,7 +139,7 @@ class CacheManager:
         """Tính kích thước thư mục"""
         total_size = 0
         try:
-            for dirpath, dirnames, filenames in os.walk(path):
+            for dirpath, _, filenames in os.walk(path):
                 for filename in filenames:
                     filepath = os.path.join(dirpath, filename)
                     try:
@@ -159,37 +155,38 @@ class CacheManager:
         if size_bytes == 0:
             return "0 B"
         
+        size_float = float(size_bytes)
+        
         for unit in ['B', 'KB', 'MB', 'GB']:
-            if size_bytes < 1024.0:
-                return f"{size_bytes:.1f} {unit}"
-            size_bytes /= 1024.0
-        return f"{size_bytes:.1f} TB"
+            if size_float < 1024.0:
+                return f"{size_float:.1f} {unit}"
+            size_float /= 1024.0
+        return f"{size_float:.1f} TB"
     
     def full_cleanup(self):
         """Thực hiện cleanup toàn bộ"""
         print("\n🚀 BẮT ĐẦU CLEANUP CACHE")
         print("=" * 50)
         
-        # Get initial cache info
         initial_info = self.get_cache_info()
         print(f"📊 Cache ban đầu: {self.format_size(initial_info['total_cache_size'])}")
         print(f"   - Model cache: {self.format_size(initial_info['model_cache_size'])} (giữ lại)")
         print(f"   - Temp cache: {self.format_size(initial_info['temp_cache_size'])} (sẽ xóa)")
         
-        # Cleanup operations
-        temp_size, temp_count = self.cleanup_temp_files()
+        self.cleanup_temp_files()
         self.cleanup_memory_cache()
-        log_count = self.cleanup_old_logs()
+        self.cleanup_old_logs()
         
-        # Final info
         final_info = self.get_cache_info()
         saved_space = initial_info['total_cache_size'] - final_info['total_cache_size']
         
         print("\n✅ CLEANUP HOÀN TẤT")
-        print(f"🗑️ Đã xóa: {temp_count} thư mục, {log_count} log files")
         print(f"💾 Tiết kiệm: {self.format_size(saved_space)}")
         print(f"📊 Cache còn lại: {self.format_size(final_info['total_cache_size'])}")
         print("=" * 50)
 
 # Global cache manager instance
 cache_manager = CacheManager()
+
+# [FIX] Explicitly declare the global instance as an exportable symbol
+__all__ = ['cache_manager']

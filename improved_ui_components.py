@@ -1,5 +1,5 @@
 # improved_ui_components.py
-# UI components cải tiến với hiển thị similarity score rõ ràng
+# UI components cải tiến với hiển thị similarity score rõ ràng và nhóm "Hỗn Hợp"
 
 import os
 from PySide6.QtWidgets import (
@@ -22,13 +22,18 @@ class ImprovedImageGroupWidget(QWidget):
         self.analysis_method = analysis_method
         self.checkboxes = []
         self.init_ui()
+        
+        # [NEW] Default select all for hybrid groups
+        if self.group_type == "hybrid_subject":
+            self.toggle_all_selection(True)
+            self.select_all_cb.setChecked(True)
 
     def init_ui(self):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(15, 15, 15, 15)
         main_layout.setSpacing(10)
         
-        # Determine colors and text based on type - FIXED SIMILARITY DISPLAY
+        # Determine colors and text based on type
         if self.group_type == "duplicate":
             type_text = "🔄 TRÙNG LẶP"
             score_text = "100%"
@@ -36,31 +41,17 @@ class ImprovedImageGroupWidget(QWidget):
             bg_color = "#fef2f2"    # Light red
         elif self.group_type == "similar_subject":
             type_text = "🎯 TƯƠNG TỰ"
-            # Debug similarity score
-            print(f"DEBUG: similarity_score = {self.similarity_score}, type = {type(self.similarity_score)}")
-            
-            # Fix similarity score display with better logic
-            if isinstance(self.similarity_score, (int, float)) and self.similarity_score > 0:
-                if self.similarity_score <= 1.0:
-                    # Score is in 0-1 range, convert to percentage
-                    score_text = f"{self.similarity_score*100:.0f}%"
-                else:
-                    # Score is already in percentage
-                    score_text = f"{self.similarity_score:.0f}%"
-            elif isinstance(self.similarity_score, str):
-                # Try to parse string
-                try:
-                    score_val = float(self.similarity_score)
-                    if score_val <= 1.0:
-                        score_text = f"{score_val*100:.0f}%"
-                    else:
-                        score_text = f"{score_val:.0f}%"
-                except:
-                    score_text = "85%"  # Default fallback
-            else:
-                score_text = "85%"  # Default fallback
+            score_val = self.similarity_score if isinstance(self.similarity_score, (int, float)) else 0.85
+            score_text = f"{score_val * 100:.0f}%"
             type_color = "#ea580c"  # Orange
             bg_color = "#fff7ed"    # Light orange
+        # [NEW] UI for Hybrid Group
+        elif self.group_type == "hybrid_subject":
+            type_text = "🧬 HỖN HỢP"
+            score_val = self.similarity_score if isinstance(self.similarity_score, (int, float)) else 0.90
+            score_text = f"~{score_val * 100:.0f}%"
+            type_color = "#9333ea"  # Purple
+            bg_color = "#f5f3ff"    # Light purple
         else:
             type_text = "❓ KHÔNG XÁC ĐỊNH"
             score_text = "0%"
@@ -221,10 +212,10 @@ class ImprovedImageGroupWidget(QWidget):
             file_name = os.path.basename(file_path)
             try:
                 file_size = os.path.getsize(file_path) / (1024*1024)
-                file_info = f"{file_name}\n{file_size:.1f} MB\n{file_path}"
+                file_info_tooltip = f"{file_name}\n{file_size:.1f} MB\n{file_path}"
             except:
-                file_info = f"{file_name}\n{file_path}"
-            img_label.setToolTip(file_info)
+                file_info_tooltip = f"{file_name}\n{file_path}"
+            img_label.setToolTip(file_info_tooltip)
             
             # File index lớn hơn
             index_label = QLabel(f"#{i+1}")
