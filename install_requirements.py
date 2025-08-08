@@ -20,7 +20,14 @@ LIBRARIES_TO_INSTALL = [
     "open_clip_torch",
     "tqdm",
     "huggingface_hub",
-    "opencv-contrib-python-headless" # [V24] Sử dụng phiên bản contrib để đảm bảo có đủ module
+    "opencv-contrib-python-headless", # [V24] Sử dụng phiên bản contrib để đảm bảo có đủ module
+    "send2trash",
+    "python-dotenv",
+    "requests",
+    "pandas",
+    "matplotlib",
+    "seaborn",
+    "faiss-cpu"
 ]
 
 def install_pytorch():
