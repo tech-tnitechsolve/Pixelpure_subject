@@ -1,8 +1,41 @@
+import os
+
 # speed_config.py
 # Cấu hình tốc độ quét cho PixelPure
 
 class SpeedConfig:
     """Cấu hình các chế độ quét khác nhau"""
+    # Mở rộng các định dạng ảnh được chấp nhận (case-insensitive)
+    # Comprehensive list of image/photo formats commonly encountered.
+    # Includes JPEG variants (JFIF), modern formats (WEBP, AVIF),
+    # RAW camera formats, vector formats and legacy/container formats.
+    SUPPORTED_IMAGE_EXTENSIONS = (
+        # JPEG family
+        '.jpg', '.jpeg', '.jpe', '.jfif', '.pjpeg',
+        # Modern compressed/formats
+        '.png', '.webp', '.avif', '.jxl',
+        # Animated / raster
+        '.gif', '.bmp', '.dib',
+        # TIFF family
+        '.tif', '.tiff', '.jp2', '.j2k', '.jpc', '.jxr',
+        # HEIF/HEIC
+        '.heic', '.heif',
+        # Vector / misc
+        '.svg', '.psd',
+        # Common camera RAW and manufacturer-specific RAW extensions
+        '.raw', '.arw', '.cr2', '.cr3', '.crw', '.nef', '.nrw',
+        '.orf', '.sr2', '.srw', '.dng', '.rw2', '.pef', '.raf', '.r3d', '.kdc',
+        # Icons / small formats
+        '.ico', '.icns', '.xbm', '.cur'
+    )
+
+    @classmethod
+    def is_supported_image(cls, filename: str) -> bool:
+        """Kiểm tra xem filename có phải là ảnh theo danh sách hỗ trợ hay không."""
+        if not filename:
+            return False
+        _, ext = os.path.splitext(filename)
+        return ext.lower() in cls.SUPPORTED_IMAGE_EXTENSIONS
     
     # Chế độ SIÊU NHANH - Ưu tiên tốc độ tối đa
     ULTRA_FAST = {
@@ -58,14 +91,14 @@ class SpeedConfig:
         'description': 'Độ chính xác cao nhất 95-98%, tốc độ chậm hơn',
         'fast_mode': False,
         'batch_size_gpu': 64,
-        'batch_size_cpu': 8,
+        'batch_size_cpu': 4,
         'model_name': 'ViT-H-14',
         'model_pretrained': 'laion2b_s32b_b79k',
         'resize_before_analysis': False,
         'parallel_processing': False,
         'skip_detailed_analysis': False,
         'similarity_threshold': 0.87,
-        'max_workers': 2
+        'max_workers': 1
     }
     
     @classmethod
