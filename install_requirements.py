@@ -21,6 +21,7 @@ LIBRARIES_TO_INSTALL = [
     "tqdm",
     "huggingface_hub",
     "opencv-contrib-python-headless" # [V24] Sử dụng phiên bản contrib để đảm bảo có đủ module
+    ,"send2trash" # Thêm package quản lý file/folder vào môi trường
 ]
 
 def install_pytorch():
