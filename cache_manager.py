@@ -86,36 +86,28 @@ class CacheManager:
             except:
                 pass
         
-        # Clear CPU cache
-        try:
-            if hasattr(torch, 'cpu'):
-                torch.cpu.empty_cache() if hasattr(torch.cpu, 'empty_cache') else None
-        except:
-            pass
+    # Không có hàm empty_cache cho CPU trong torch
+    # Nếu cần giải phóng bộ nhớ CPU, chỉ dùng gc.collect()
     
     def cleanup_old_logs(self, max_age_days: int = 7):
         """Xóa log files cũ"""
         print("📝 Dọn dẹp log files cũ...")
-        
         log_patterns = ['*.log', '*.txt', 'debug_*', 'error_*']
         cleaned_count = 0
-        
+        import glob
+        import time
         for pattern in log_patterns:
             try:
-                import glob
                 for log_file in glob.glob(pattern):
                     if os.path.isfile(log_file):
-                        # Check file age
-                        file_age = (os.path.getctime(log_file))
-                        import time
+                        file_age = os.path.getctime(log_file)
                         if time.time() - file_age > (max_age_days * 24 * 3600):
                             os.remove(log_file)
                             cleaned_count += 1
                             print(f"   ✅ Đã xóa log: {log_file}")
-            except:
-                pass
-        
-        return cleaned_count
+            except Exception as e:
+                print(f"   ⚠️ Không thể xóa log {pattern}: {e}")
+        return int(cleaned_count)
     
     def get_cache_info(self):
         """Lấy thông tin cache hiện tại"""
@@ -158,12 +150,12 @@ class CacheManager:
         """Format kích thước file"""
         if size_bytes == 0:
             return "0 B"
-        
+        size = float(size_bytes)
         for unit in ['B', 'KB', 'MB', 'GB']:
-            if size_bytes < 1024.0:
-                return f"{size_bytes:.1f} {unit}"
-            size_bytes /= 1024.0
-        return f"{size_bytes:.1f} TB"
+            if size < 1024.0:
+                return f"{size:.1f} {unit}"
+            size /= 1024.0
+        return f"{size:.1f} TB"
     
     def full_cleanup(self):
         """Thực hiện cleanup toàn bộ"""
