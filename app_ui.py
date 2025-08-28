@@ -1493,7 +1493,8 @@ class MainWindow(QMainWindow):
         except ImportError:
             self.speed_modes = {
                 'fast': {'name': 'Nhanh', 'description': 'Tốc độ cao, độ chính xác 85%'},
-                'balanced': {'name': 'Cân Bằng', 'description': 'Cân bằng tốc độ và chất lượng'}
+                'balanced': {'name': 'Cân Bằng', 'description': 'Cân bằng tốc độ và chất lượng'},
+                'high_quality': {'name': 'Chất Lượng Cao', 'description': 'Độ chính xác cao nhất, tốc độ chậm hơn'}
             }
         
         self.speed_group = QButtonGroup()
@@ -1506,8 +1507,8 @@ class MainWindow(QMainWindow):
             self.speed_group.addButton(radio)
             speed_layout.addWidget(radio)
             
-            # Set default to fast mode
-            if mode_key == 'fast':
+            # Set default to high quality mode
+            if mode_key == 'high_quality':
                 radio.setChecked(True)
         
         # Time estimation label
@@ -1579,7 +1580,7 @@ class MainWindow(QMainWindow):
             from speed_config import SpeedConfig
             
             # Get selected mode
-            selected_mode = 'fast'
+            selected_mode = 'high_quality'
             for mode_key, radio in self.speed_radios.items():
                 if radio.isChecked():
                     selected_mode = mode_key
@@ -1729,15 +1730,15 @@ class MainWindow(QMainWindow):
         self.progress_dialog.show()
 
         # Get selected speed mode
-        selected_mode = 'fast'  # default
+        selected_mode = 'high_quality'  # default
         for mode_key, radio in self.speed_radios.items():
             if radio.isChecked():
                 selected_mode = mode_key
                 break
-        
+
         # Create scanner with speed mode
         self.scanner_worker = ScannerWorker(files_to_scan, 0.85, selected_mode)
-        
+
         if self.scanner_worker:
             self.scanner_worker.progress_updated.connect(self.update_progress)
             self.scanner_worker.scan_completed.connect(self.scan_finished)
