@@ -293,37 +293,104 @@ class DropZone(QWidget):
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         title_label.setStyleSheet("font-size: 24px; font-weight: bold; margin: 10px;")
 
-        instruction_label = QLabel("Kéo thả file ảnh hoặc thư mục vào đây\nHoặc nhấn nút bên dưới để chọn file")
+        try:
+            from speed_config import SpeedConfig
+            exts_all = [e.lstrip('.') for e in SpeedConfig.SUPPORTED_IMAGE_EXTENSIONS]
+            # Build a shortened display list to avoid overflowing the UI
+            display_exts = ', '.join(exts_all[:12])
+            if len(exts_all) > 12:
+                display_exts += ', ...'
+            exts = display_exts
+            instruction_text = f"Kéo thả file ảnh hoặc thư mục vào đây\nHoặc thả nhiều file cùng lúc."
+        except Exception:
+            exts = "jpg, jpeg, png, webp, ..."
+            instruction_text = "Kéo thả file ảnh hoặc thư mục vào đây\nHoặc thả nhiều file cùng lúc."
+        instruction_label = QLabel(instruction_text)
         instruction_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         instruction_label.setStyleSheet("font-size: 14px; color: #cccccc; line-height: 1.5;")
+        instruction_label.setWordWrap(True)
 
-        button_layout = QHBoxLayout()
+        # Supported formats - smaller text, wrapped and centered to avoid layout overflow
+        try:
+            supported_exts = exts
+        except NameError:
+            supported_exts = "jpg, jpeg, png, webp, ..."
+        supported_label = QLabel(f"Hỗ trợ: {supported_exts}")
+        supported_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        supported_label.setStyleSheet("font-size: 11px; color: #999999;")
+        supported_label.setWordWrap(True)
+        supported_label.setMaximumHeight(48)
+
+        # Drag overlay shown when user drags files over the drop zone
+        self._drag_overlay = QLabel("Thả vào đây để thêm file", self)
+        self._drag_overlay.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._drag_overlay.setStyleSheet(
+            "background-color: rgba(0,0,0,0.6); color: #ffffff; font-size: 18px; border-radius: 8px; padding: 20px;"
+        )
+        self._drag_overlay.hide()
+
+        # Keep button attributes for signal wiring, but hide them from the UI
+        # so the DropZone shows only the drag-and-drop area as requested.
         self.add_files_btn = QPushButton("Chọn File Ảnh")
         self.add_folder_btn = QPushButton("Chọn Thư Mục")
-        
         self.add_files_btn.setProperty("cssClass", "accent")
         self.add_folder_btn.setProperty("cssClass", "accent")
-        
-        button_layout.addWidget(self.add_files_btn)
-        button_layout.addWidget(self.add_folder_btn)
+        self.add_files_btn.hide()
+        self.add_folder_btn.hide()
 
         layout.addWidget(icon_label)
         layout.addWidget(title_label)
         layout.addWidget(instruction_label)
-        layout.addLayout(button_layout)
+        layout.addWidget(supported_label)
+
+    def resizeEvent(self, event):
+        # Ensure overlay covers the full drop zone
+        super().resizeEvent(event)
+        try:
+            self._drag_overlay.setGeometry(10, 10, self.width() - 20, self.height() - 20)
+        except Exception:
+            pass
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
+            # Show overlay and highlight
+            self._drag_overlay.show()
+            self._drag_overlay.raise_()
+            self.setStyleSheet("background-color: rgba(255,255,255,0.02);")
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dragLeaveEvent(self, event):
+        # Hide overlay when drag leaves
+        try:
+            self._drag_overlay.hide()
+        except Exception:
+            pass
+        # Remove highlight
+        self.setStyleSheet("")
 
     def dropEvent(self, event):
-        paths = [url.toLocalFile() for url in event.mimeData().urls()]
+        try:
+            paths = [url.toLocalFile() for url in event.mimeData().urls()]
+        except Exception:
+            paths = []
+        # Hide overlay and remove highlight
+        try:
+            self._drag_overlay.hide()
+        except Exception:
+            pass
+        self.setStyleSheet("")
         # Find the MainWindow through the widget hierarchy
         widget = self
         while widget and not isinstance(widget, MainWindow):
             widget = widget.parent()
         if widget and hasattr(widget, 'handle_dropped_files'):
             widget.handle_dropped_files(paths)
+
+    # (dragEnterEvent and dropEvent implemented above with overlay/highlight)
 
 class FileTableWidget(QTableWidget):
     def __init__(self):
@@ -1536,19 +1603,26 @@ class MainWindow(QMainWindow):
             self.time_estimate_label.setText("⏱️ Không thể ước tính thời gian")
 
     def handle_dropped_files(self, paths):
-        valid_ext = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
+        # Prefer SpeedConfig list if available
+        try:
+            from speed_config import SpeedConfig
+            valid_ext = set(SpeedConfig.SUPPORTED_IMAGE_EXTENSIONS)
+            is_supported = SpeedConfig.is_supported_image
+        except Exception:
+            valid_ext = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff"}
+            is_supported = lambda fn: os.path.splitext(fn)[1].lower() in valid_ext
         added_count = 0
         
         for path in paths:
             if os.path.isdir(path):
                 for root, _, files in os.walk(path):
                     for name in files:
-                        if os.path.splitext(name)[1].lower() in valid_ext:
+                        if is_supported(name):
                             full_path = os.path.join(root, name)
                             if full_path not in self.file_list:
                                 self.file_list.add(full_path)
                                 added_count += 1
-            elif os.path.isfile(path) and os.path.splitext(path)[1].lower() in valid_ext:
+            elif os.path.isfile(path) and is_supported(path):
                 if path not in self.file_list:
                     self.file_list.add(path)
                     added_count += 1
@@ -1587,7 +1661,13 @@ class MainWindow(QMainWindow):
         self.update_time_estimate()
 
     def add_files(self):
-        files, _ = QFileDialog.getOpenFileNames(self, "Chọn file ảnh", "", "Image Files (*.png *.jpg *.jpeg *.webp *.bmp *.tiff)")
+        try:
+            from speed_config import SpeedConfig
+            exts = ' '.join(f'*{e}' for e in SpeedConfig.SUPPORTED_IMAGE_EXTENSIONS)
+            filter_str = f"Image Files ({exts})"
+        except Exception:
+            filter_str = "Image Files (*.png *.jpg *.jpeg *.webp *.bmp *.tiff)"
+        files, _ = QFileDialog.getOpenFileNames(self, "Chọn file ảnh", "", filter_str)
         if files:
             self.handle_dropped_files(files)
 
@@ -1718,7 +1798,7 @@ class MainWindow(QMainWindow):
                 self.scanner_worker.wait(3000)  # Wait max 3 seconds
             
             # Show cleanup progress
-            cleanup_dialog = QProgressDialog("🧹 Đang dọn dẹp cache...", None, 0, 0, self)
+            cleanup_dialog = QProgressDialog("🧹 Đang dọn dẹp cache...", "", 0, 0, self)
             cleanup_dialog.setWindowTitle("Dọn dẹp")
             cleanup_dialog.setWindowModality(Qt.WindowModality.WindowModal)
             cleanup_dialog.show()
