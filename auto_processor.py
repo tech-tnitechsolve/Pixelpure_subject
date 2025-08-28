@@ -3,7 +3,7 @@
 
 import os
 import shutil
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from send2trash import send2trash
 
 class AutoProcessor:
@@ -148,7 +148,7 @@ class AutoProcessor:
         
         print(f"🎯 Nhóm tương tự {group_number}: Đã đổi tên {len(file_paths)} files")
     
-    def _find_best_file_from_paths(self, file_paths: List[str]) -> str:
+    def _find_best_file_from_paths(self, file_paths: List[str]) -> 'Optional[str]':
         """Tìm file tốt nhất để giữ lại dựa trên tiêu chí"""
         best_file = None
         best_score = -1
@@ -162,7 +162,12 @@ class AutoProcessor:
                 best_score = score
                 best_file = file_path
         
-        return best_file or file_paths[0] if file_paths else None
+        if best_file:
+            return best_file
+        elif file_paths:
+            return file_paths[0]
+        else:
+            return None
     
     def _calculate_file_score(self, file_path: str) -> float:
         """Tính điểm cho file dựa trên các tiêu chí"""
@@ -189,10 +194,21 @@ class AutoProcessor:
             
             # Tiêu chí 5: Định dạng file (ưu tiên JPG > PNG > khác)
             ext = os.path.splitext(file_path)[1].lower()
-            if ext in ['.jpg', '.jpeg']:
-                score += 2.0
-            elif ext == '.png':
-                score += 1.0
+            try:
+                from speed_config import SpeedConfig
+                jpg_exts = {'.jpg', '.jpeg'}
+                if ext in jpg_exts:
+                    score += 2.0
+                elif ext in {'.png'}:
+                    score += 1.0
+                # Give slight bonus for supported image formats
+                if ext in set(SpeedConfig.SUPPORTED_IMAGE_EXTENSIONS):
+                    score += 0.5
+            except Exception:
+                if ext in ['.jpg', '.jpeg']:
+                    score += 2.0
+                elif ext == '.png':
+                    score += 1.0
             
         except Exception:
             score = 0.0
