@@ -36,11 +36,8 @@ class ImprovedImageGroupWidget(QWidget):
             bg_color = "#fef2f2"    # Light red
         elif self.group_type == "similar_subject":
             type_text = "🎯 TƯƠNG TỰ"
-            # Debug similarity score
-            print(f"DEBUG: similarity_score = {self.similarity_score}, type = {type(self.similarity_score)}")
-            
-            # Fix similarity score display with better logic
-            if isinstance(self.similarity_score, (int, float)) and self.similarity_score > 0:
+            # Fix similarity score display with robust handling (allow zero)
+            if isinstance(self.similarity_score, (int, float)) and self.similarity_score >= 0:
                 if self.similarity_score <= 1.0:
                     # Score is in 0-1 range, convert to percentage
                     score_text = f"{self.similarity_score*100:.0f}%"
