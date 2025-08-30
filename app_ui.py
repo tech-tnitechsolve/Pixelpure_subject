@@ -1737,7 +1737,22 @@ class MainWindow(QMainWindow):
                 break
 
         # Create scanner with speed mode
-        self.scanner_worker = ScannerWorker(files_to_scan, 0.85, selected_mode)
+        allow_cpu_fallback = False
+        if selected_mode == 'high_quality':
+            try:
+                import torch
+                if not torch.cuda.is_available():
+                    reply = QMessageBox.question(
+                        self,
+                        "Yêu cầu GPU",
+                        "Chế độ Chất Lượng Cao yêu cầu GPU (CUDA).\nBạn có muốn chạy bằng CPU không? (Chậm hơn nhiều)",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        QMessageBox.StandardButton.No
+                    )
+                    allow_cpu_fallback = (reply == QMessageBox.StandardButton.Yes)
+            except Exception:
+                pass
+        self.scanner_worker = ScannerWorker(files_to_scan, 0.85, selected_mode, allow_cpu_fallback)
 
         if self.scanner_worker:
             self.scanner_worker.progress_updated.connect(self.update_progress)
