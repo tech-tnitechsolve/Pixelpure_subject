@@ -40,9 +40,10 @@ class ScannerWorker(QThread):
     scan_completed = Signal(list)
     error_occurred = Signal(str)
 
-    def __init__(self, file_list, similarity_threshold, speed_mode='fast'):
+    def __init__(self, file_list, similarity_threshold, speed_mode='fast', allow_cpu_fallback=False):
         super().__init__()
         self.file_list = file_list
+        self.allow_cpu_fallback = allow_cpu_fallback
         
         # THÊM: Import cấu hình tốc độ
         from speed_config import SpeedConfig
@@ -430,40 +431,98 @@ class ScannerWorker(QThread):
             if len(self.file_list) < 2:
                 self.scan_completed.emit([]); return
 
+            # Enforce GPU-only mode if required by speed config
+            if self.speed_config.get('use_gpu_only', False) and self.device != "cuda":
+                if not self.allow_cpu_fallback:
+                    self.error_occurred.emit("Chế độ Chất Lượng Cao yêu cầu GPU (CUDA). Bạn có muốn chạy bằng CPU không? (Chậm hơn nhiều)")
+                    self.scan_completed.emit([])
+                    return
+                else:
+                    # Override to CPU explicitly for clarity
+                    self.device = "cpu"
+
             self._load_model()
             if not self.model or not self.preprocess or not self.tokenizer:
                 self.error_occurred.emit("AI Model chưa được tải cho Subject Analysis."); return
 
-            # Tầng 1: Lọc Trùng lặp Tuyệt đối bằng Perceptual Hash
+            # Tầng 1: Lọc Trùng lặp Tuyệt đối bằng Multi-Hash Analysis
             total_files = len(self.file_list)
-            hashes = {}
+            file_hashes = {}  # file_path -> {'dhash': hash, 'phash': hash, 'ahash': hash, 'size': int, 'dimensions': tuple}
             all_file_info = {}
-            self.progress_updated.emit(0, total_files, f"Tầng 1/5: Phát hiện ảnh trùng lặp...")
+            self.progress_updated.emit(0, total_files, f"Tầng 1/5: Phát hiện ảnh trùng lặp (Multi-Hash)...")
             
             for idx, file_path in enumerate(self.file_list):
                 self._check_pause();
                 if not self.is_running: return
-                self.progress_updated.emit(idx + 1, total_files, f"Tầng 1/5: Hash ảnh ({idx+1}/{total_files})")
+                self.progress_updated.emit(idx + 1, total_files, f"Tầng 1/5: Multi-Hash ảnh ({idx+1}/{total_files})")
                 info = self._get_file_info(file_path)
                 if not info: continue
                 all_file_info[file_path] = info
                 try:
                     with Image.open(file_path) as img:
-                        h = imagehash.dhash(img.convert("RGB"))
-                        hashes.setdefault(h, []).append(file_path)
+                        img_rgb = img.convert("RGB")
+                        # Tính 3 loại hash khác nhau để kiểm tra chéo
+                        dhash_val = imagehash.dhash(img_rgb)
+                        phash_val = imagehash.phash(img_rgb)
+                        ahash_val = imagehash.average_hash(img_rgb)
+                        
+                        file_hashes[file_path] = {
+                            'dhash': dhash_val,
+                            'phash': phash_val, 
+                            'ahash': ahash_val,
+                            'size': info['size'],
+                            'dimensions': (info['width'], info['height'])
+                        }
                 except Exception: continue
             
+            # Tìm ảnh trùng lặp thực sự bằng multi-hash validation
             duplicate_groups = []
             files_for_deep_scan = []
-            for h, paths in hashes.items():
-                if len(paths) > 1:
+            processed_files = set()
+            
+            for file1 in file_hashes:
+                if file1 in processed_files: continue
+                
+                duplicate_candidates = [file1]
+                hash1 = file_hashes[file1]
+                
+                for file2 in file_hashes:
+                    if file2 == file1 or file2 in processed_files: continue
+                    hash2 = file_hashes[file2]
+                    
+                    # KIỂM TRA NGHIÊM NGẶT: Phải thỏa mãn TẤT CẢ điều kiện sau
+                    is_true_duplicate = (
+                        # 1. Ít nhất 2/3 hash phải giống nhau hoàn toàn (distance = 0)
+                        sum([
+                            hash1['dhash'] - hash2['dhash'] == 0,
+                            hash1['phash'] - hash2['phash'] == 0, 
+                            hash1['ahash'] - hash2['ahash'] == 0
+                        ]) >= 2 and
+                        
+                        # 2. Kích thước file gần giống nhau (chênh lệch < 5% hoặc < 10KB)
+                        (abs(hash1['size'] - hash2['size']) < max(hash1['size'] * 0.05, 10240)) and
+                        
+                        # 3. Kích thước ảnh phải giống nhau hoàn toàn
+                        hash1['dimensions'] == hash2['dimensions']
+                    )
+                    
+                    if is_true_duplicate:
+                        duplicate_candidates.append(file2)
+                        processed_files.add(file2)
+                
+                processed_files.add(file1)
+                
+                if len(duplicate_candidates) > 1:
+                    # Đây là nhóm trùng lặp thực sự
                     duplicate_groups.append({ 
                         "type": "duplicate", 
-                        "files": [all_file_info[p] for p in paths if p in all_file_info], 
-                        "score": 1.0 
+                        "files": [all_file_info[p] for p in duplicate_candidates if p in all_file_info], 
+                        "score": 1.0,
+                        "analysis_method": "Multi-Hash Validation (dhash+phash+ahash+size+dimensions)"
                     })
-                elif paths:
-                    files_for_deep_scan.append(paths[0])
+                else:
+                    # File này không trùng lặp, đưa vào deep scan
+                    files_for_deep_scan.append(file1)
             
             # Tầng 2: Phân tích Subject với xử lý SONG SONG
             num_deep_scan = len(files_for_deep_scan)
