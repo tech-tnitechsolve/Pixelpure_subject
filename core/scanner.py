@@ -157,8 +157,18 @@ class ScannerWorker(QThread):
         try:
             with Image.open(file_path) as img:
                 img.load()
-                return {"path": file_path, "size": os.path.getsize(file_path), "width": img.width, "height": img.height}
-        except (UnidentifiedImageError, FileNotFoundError, PermissionError, OSError):
+                return {
+                    "path": file_path,
+                    "size": os.path.getsize(file_path),
+                    "width": img.width,
+                    "height": img.height
+                }
+        except (UnidentifiedImageError, FileNotFoundError, PermissionError, SyntaxError, OSError) as e:
+            print(f"[WARNING] Lỗi khi đọc file ảnh \"{file_path}\": {e}")
+            return None  # Bỏ qua file ảnh bị hỏng hoặc không đọc được
+        except Exception as e:
+            # Bắt mọi lỗi khác liên quan đến file ảnh, ví dụ PNG bị hỏng
+            print(f"[WARNING] File ảnh bị lỗi hoặc không hợp lệ (bỏ qua): {file_path} | Lỗi: {e}")
             return None
 
     def _analyze_subject_detail(self, file_path: str) -> float:
